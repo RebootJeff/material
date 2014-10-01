@@ -1,3 +1,62 @@
-material-circular-progress {
+ $circle-size:100px;
+ $circle-background:transparent;
+ $circle-color:$color-blue-500;
+ $inset-size:80px;
+ $inset-color:#fbfbfb;
+ $transition-length:.3s;
+ $shadow:6px 6px 10px rgba(0, 0, 0, 0.2);
 
+ material-circular-progress {
+  display: block;
+
+  &[mode=determinate] {
+    width: $circle-size;
+    height: $circle-size;
+    background-color: $circle-background;
+    border-radius: 50%;
+
+    .circle {
+      .mask, .fill, .shadow {
+        width: $circle-size;
+        height: $circle-size;
+        position: absolute;
+        border-radius: 50%;
+      }
+
+      .shadow {
+        box-shadow: $shadow inset;
+      }
+
+      .mask, .fill {
+        -webkit-backface-visibility: hidden;
+        transition: -webkit-transform $transition-length;
+        transition: -ms-transform $transition-length;
+        transition: transform $transition-length;
+      }
+
+      .mask {
+        clip: rect(0px, $circle-size, $circle-size, $circle-size/2);
+
+        .fill {
+          clip: rect(0px, $circle-size/2, $circle-size, 0px);
+          background-color: $circle-color;
+        }
+      }
+    }
+
+    .inset {
+      width: $inset-size;
+      height: $inset-size;
+      position: absolute;
+      margin-left: ($circle-size - $inset-size)/2;
+      margin-top: ($circle-size - $inset-size)/2;
+      background-color: $inset-color;
+      border-radius: 50%;
+      box-shadow: $shadow;
+    }
+  }
+
+  &[mode=indeterminate] {
+
+  }
 }
