@@ -41,6 +41,10 @@ function MaterialSticky($window, $document, $$rAF, $materialEffects) {
    * Registers an element as sticky, used internally by directives to register themselves
    */
 
+  // Scroll keeping variables to ensure that we continually re-render while we are scrolling
+  var STOP_CHECK_AFTER = 100;
+  var lastScrollAt;
+  var keepChecking = false;
 
   function registerStickyElement(scope, $el) {
     scope.$on('$destroy', function() { $deregister($el); });
@@ -63,7 +67,7 @@ function MaterialSticky($window, $document, $$rAF, $materialEffects) {
     var $sticky = $container.data('$sticky') || {
       elements: [], // all known sticky elements within $container
       orderedElements: [], // elements, ordered by vertical position in layout
-      check: $$rAF.debounce(angular.bind(undefined, checkElements, $container)),
+      check: $$rAF.debounce(angular.bind(undefined, startChecking, $container)),
       targetIndex: 0
     };
 
@@ -160,8 +164,30 @@ function MaterialSticky($window, $document, $$rAF, $materialEffects) {
     }
   }
 
+  function startChecking($container) {
+    lastScrollAt = Date.now();
+    if (!keepChecking) {
+      console.log("Start");
+      keepChecking = true;
+      scheduleNext($container);
+    }
+  }
+
+  function scheduleNext($container) {
+    if (lastScrollAt.valueOf() >= (Date.now().valueOf() - STOP_CHECK_AFTER)) {
+      $$rAF(function() {
+        checkElements($container);
+      });
+    } else {
+      console.log("Stop");
+      lastScrollAt = undefined;
+      keepChecking = false;
+    }
+  }
+
   // Function that executes on scroll to see if we need to do adjustments
   function checkElements($container) {
+    console.log("Check");
     var next; // pointer to next target
 
     var $sticky = $container.data('$sticky');
@@ -180,23 +206,26 @@ function MaterialSticky($window, $document, $$rAF, $materialEffects) {
     var containerRect = rect($container);
     var targetRect = rect(targetElement());
 
+    var nextRect, offsetAmount, currentTop, translateAmt;
+
     var scrollingDown = false;
     var currentScroll = $container.prop('scrollTop');
     var lastScroll = $sticky.lastScroll;
+
     if (currentScroll > (lastScroll || 0)) {
       scrollingDown = true;
     }
+    if ($sticky.lastScroll == currentScroll) return scheduleNext($container);
     $sticky.lastScroll = currentScroll;
 
     var stickyActive = content.hasClass('material-sticky-active');
 
-
     // If we are scrollingDown, sticky, and are being pushed off screen by a different element, increment
-    if (scrollingDown && stickyActive && contentRect.bottom <= containerRect.top && targetElementIndex < orderedElements.length - 1) {
+    if (scrollingDown && stickyActive && contentRect.bottom <= containerRect.top + 1 && targetElementIndex < orderedElements.length - 1) {
       targetElement().children(0).removeClass('material-sticky-active');
       targetElement().css('height', null);
       incrementElement();
-      return;
+      return scheduleNext($container);
 
     //If we are going up, and our normal position would be rendered not sticky, un-sticky ourselves
     } else if (!scrollingDown && stickyActive && targetRect.top > containerRect.top) {
@@ -207,16 +236,14 @@ function MaterialSticky($window, $document, $$rAF, $materialEffects) {
         content.addClass('material-sticky-active');
         transformY(content, -contentRect.height);
         targetElement().css('height', contentRect.height + 'px');
-        return;
+        return scheduleNext($container);
       }
-      return; // explicit return for the blind
 
     /* 
      * If we are going off screen and haven't been made sticky yet, go sticky
      * Check at 0 so that if we get lucky on the scroll position, we activate
      * sticky and avoid floating off the top for a second
      */
-
     } else if (scrollingDown && contentRect.top <= containerRect.top && !stickyActive) {
       content.addClass('material-sticky-active');
       targetElement().css('height', contentRect.height + 'px');
@@ -230,10 +257,8 @@ function MaterialSticky($window, $document, $$rAF, $materialEffects) {
         }
         transformY(content, Math.min(offset, 0));
       }
-      return;
+      return scheduleNext($container);
     } 
-
-    var nextRect, offsetAmount, currentTop, translateAmt;
 
     // check if we need to push
     if (scrollingDown) {
@@ -255,6 +280,9 @@ function MaterialSticky($window, $document, $$rAF, $materialEffects) {
       translateAmt = Math.min(currentTop - offsetAmount, 0);
       transformY(content, translateAmt);
     }
+
+    return scheduleNext($container);
+
 
     function incrementElement(inc) {
       inc = inc || 1;
