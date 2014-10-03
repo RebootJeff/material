@@ -120,7 +120,6 @@ function MaterialCheckboxDirective(inputDirectives, $materialInkRipple, $materia
 
       function render() {
         checked = ngModelCtrl.$viewValue;
-        // element.attr('aria-checked', checked);
         if(checked) {
           element.addClass(CHECKED_CSS);
         } else {
